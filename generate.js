@@ -28,12 +28,31 @@ const parseGitHubUrl = (url) => {
     return match ? { owner: match[1], repo: match[2].replace(/\.git$/, '') } : null;
 };
 
-// Fetches rich data from GitHub API
+// Fetches rich data from GitHub API with smart rate limit handling
 const fetchGitHubData = async (repoInfo) => {
     if (!repoInfo) return null;
     const apiUrl = `https://api.github.com/repos/${repoInfo.owner}/${repoInfo.repo}`;
     try {
         const response = await fetch(apiUrl, { headers });
+
+        // Handle rate limiting
+        if (response.status === 403 || response.status === 429) {
+            const rateLimitReset = response.headers.get('x-ratelimit-reset');
+            let waitTimeSec = 60; // Default wait time in seconds
+
+            if (rateLimitReset) {
+                const resetTimeMs = parseInt(rateLimitReset, 10) * 1000;
+                // Calculate wait time and add a 1-second buffer
+                waitTimeSec = Math.max(0, (resetTimeMs - Date.now()) / 1000) + 1;
+            }
+
+            console.warn(`::warning::Rate limit hit. Waiting for ${Math.ceil(waitTimeSec)} seconds until the limit resets...`);
+            await new Promise(resolve => setTimeout(resolve, waitTimeSec * 1000));
+            
+            // Retry the request once after waiting
+            return await fetchGitHubData(repoInfo);
+        }
+        
         if (response.status === 404) {
             console.warn(`::warning::[404 Not Found] Repo not found on GitHub: ${repoInfo.owner}/${repoInfo.repo}. The official index might be outdated.`);
             return { stars: 0, isArchived: true, error: 'not_found' }; // Treat 404 as "archived" to penalize it
@@ -52,7 +71,7 @@ const fetchGitHubData = async (repoInfo) => {
             topics: data.topics || [],
         };
     } catch (error) {
-        console.error(`Error fetching GitHub data for ${repoInfo.owner}/${repoInfo.repo}:`, error.message);
+        console.error(`::error::Error fetching GitHub data for ${repoInfo.owner}/${repoInfo.repo}: ${error.message}`);
         return null;
     }
 };
@@ -131,7 +150,7 @@ const generateRegistry = async () => {
         enrichedLibraries.push(lib);
 
         console.log(`Processed ${processedCount}/${uniqueLibraries.length} - ${lib.name}`);
-        await new Promise(resolve => setTimeout(resolve, 500)); // Respect rate limits
+        // The static delay is removed, as rate limit handling is now dynamic.
     }
     
     // 4. Filter and sort the final list
@@ -154,6 +173,6 @@ const generateRegistry = async () => {
 
 // --- Run the script ---
 generateRegistry().catch(error => {
-    console.error("FATAL: Registry generation failed.", error);
+    console.error(`::error::FATAL: Registry generation failed. ${error.message}`);
     process.exit(1);
 });
