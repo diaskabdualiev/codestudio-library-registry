@@ -35,7 +35,7 @@ const fetchGitHubData = async (repoInfo) => {
     try {
         const response = await fetch(apiUrl, { headers });
         if (response.status === 404) {
-            console.warn(`[404 Not Found] Repo not found on GitHub: ${repoInfo.owner}/${repoInfo.repo}`);
+            console.warn(`::warning::[404 Not Found] Repo not found on GitHub: ${repoInfo.owner}/${repoInfo.repo}. The official index might be outdated.`);
             return { stars: 0, isArchived: true, error: 'not_found' }; // Treat 404 as "archived" to penalize it
         }
         if (!response.ok) {
@@ -124,6 +124,8 @@ const generateRegistry = async () => {
                 lib.license = githubData.license;
                 lib.topics = githubData.topics;
             }
+        } else {
+            console.warn(`::warning::[Skipping] Could not parse a GitHub repository URL for library: ${lib.name}`);
         }
         delete lib._repoInfo; // Clean up temporary field
         enrichedLibraries.push(lib);
