@@ -149,7 +149,10 @@ const generateRegistry = async () => {
         delete lib._repoInfo; // Clean up temporary field
         enrichedLibraries.push(lib);
 
-        console.log(`Processed ${processedCount}/${uniqueLibraries.length} - ${lib.name}`);
+        // Log progress every 50 libraries or on the very last one
+        if (processedCount % 50 === 0 || processedCount === uniqueLibraries.length) {
+            console.log(`Processed ${processedCount}/${uniqueLibraries.length} libraries...`);
+        }
         // The static delay is removed, as rate limit handling is now dynamic.
     }
     
