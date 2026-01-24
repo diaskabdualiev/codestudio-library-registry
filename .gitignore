@@ -26,7 +26,3 @@ build/
 .env.development.local
 .env.test.local
 .env.production.local
-
-# Generated files specific to this project
-registry.json
-library_index.json
