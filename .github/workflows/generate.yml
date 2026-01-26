@@ -41,7 +41,6 @@ jobs:
           git add registry.json
           if ! git diff --staged --quiet; then
             git commit -m "chore: Update library registry"
-            git pull --rebase origin main
             git push
           else
             echo "No changes to commit."
